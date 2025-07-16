@@ -108,6 +108,7 @@ if st.button("Calculate Scores"):
     # CURB-65
     curb = 0
     if confusion == "Yes": curb += 1
+    # Ensure urea is in mmol/L; threshold for CURB-65 is 7 mmol/L
     if urea > 7: curb += 1
     if rr >= 30: curb += 1
     if sbp < 90: curb += 1
