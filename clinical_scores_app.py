@@ -20,9 +20,7 @@ urea_unit = st.radio("Urea unit:", ["mg/dL", "mmol/L"], index=0)
 urea_input = st.number_input("Urea", 0.0)
 st.write(f"Converted Urea (mmol/L): {urea_input * 0.357:.2f}" if urea_unit == "mg/dL" else f"Entered Urea (mmol/L): {urea_input:.2f}")
 
-bun_unit = st.radio("BUN unit:", ["mg/dL", "mmol/L"], index=0)
-bun_input = st.number_input("BUN", 0.0)
-bun = bun_input if bun_unit == "mg/dL" else bun_input * 2.8
+
 st.write(f"Converted BUN (mg/dL): {bun_input:.2f}" if bun_unit == "mg/dL" else f"Converted BUN (mg/dL): {bun:.2f}")
 
 # Prefer urea input, else derive from BUN if urea input is zero
@@ -177,16 +175,24 @@ if st.button("Calculate Scores"):
 
     st.subheader("Interpretations")
     for score, interpretation in zip(scores, interpretations):
-        st.markdown(f"**{score[0]}**: {interpretation}")
+        flag = "❗" if (score[0] == "NEWS2" and score[1] >= 7) or (score[0] == "CURB-65" and score[1] >= 3) else ""
+        st.markdown(f"{flag} **{score[0]}**: {interpretation}")
 
     # PDF export
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
+
+    # Add unit summary to PDF
+    pdf.cell(200, 10, txt=f"Patient: {patient_name} | Date: {report_date}", ln=True)
+    pdf.cell(200, 10, txt=f"Protein units: {unit_option}, Urea units: {urea_unit}, BUN units: {bun_unit}, Temp (F)", ln=True)
+    pdf.cell(200, 10, txt="Clinical Risk Scores:", ln=True)
+    pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt=f"Patient: {patient_name} | Date: {report_date}", ln=True)
     pdf.cell(200, 10, txt="Clinical Risk Scores:", ln=True)
     for (score, value), interpretation in zip(scores, interpretations):
-        pdf.multi_cell(0, 10, txt=f"{score}: {value} - {interpretation}")
+        flag = "❗" if (score == "NEWS2" and value >= 7) or (score == "CURB-65" and value >= 3) else ""
+        pdf.multi_cell(0, 10, txt=f"{flag}{score}: {value} - {interpretation}")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
