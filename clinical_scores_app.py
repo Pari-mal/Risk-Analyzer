@@ -63,7 +63,7 @@ globulin = st.number_input(f"Globulin ({unit_option})", 0.0) * unit_multiplier
 globulin_ratio = globulin / total_protein if total_protein > 0 else 0
 alt_platelet_ratio = alt / platelets if platelets > 0 else 0
 albi = (math.log10(bilirubin * 17.1) * 0.66) + (-0.085 * albumin) if bilirubin > 0 and albumin > 0 else 0
-egfr = 186 * (creatinine ** -1.154) * (age ** -0.203)
+egfr = 186 * (creatinine ** -1.154) * (age ** -0.203) if creatinine > 0 and age > 0 else 0
 if sex == "Female":
     egfr *= 0.742
 
