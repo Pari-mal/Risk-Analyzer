@@ -2,8 +2,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 from fpdf import FPDF
-from io import BytesIO
 import math
+import tempfile
 
 # 🧑‍⚕️ Patient Info Input
 st.title("Clinical Risk Score Analyzer")
@@ -42,7 +42,7 @@ globulin = st.number_input("Globulin", 0.0)
 def clean_interpretation(text):
     return ''.join(char for char in text if ord(char) < 128)
 
-# Minimal PDF export logic
+# Minimal PDF export logic using temporary file workaround
 def create_pdf(dataframe, name, date):
     pdf = FPDF()
     pdf.add_page()
@@ -61,10 +61,12 @@ def create_pdf(dataframe, name, date):
         pdf.cell(col_widths[2], 10, str(interp), 1)
         pdf.ln()
 
-    output = BytesIO()
-    pdf.output(output)
-    output.seek(0)
-    return output
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        pdf.output(tmp_file.name)
+        tmp_file.seek(0)
+        pdf_data = tmp_file.read()
+
+    return pdf_data
 
 if st.button("Download PDF Report"):
     dummy_data = pd.DataFrame({
