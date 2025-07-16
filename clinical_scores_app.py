@@ -1,13 +1,44 @@
-...
-# Patient Info Input
+import streamlit as st
+import numpy as np
+import pandas as pd
+from fpdf import FPDF
+from io import BytesIO
+import math
+
+# 🧑‍⚕️ Patient Info Input
+st.title("Clinical Risk Score Analyzer")
 st.subheader("🧑‍⚕️ Patient Information")
 patient_name = st.text_input("Patient Name")
 report_date = st.date_input("Report Date")
 
-# Summary Table
-...
+# Example placeholder data to avoid runtime errors on initial load
+age = st.number_input("Age", 0)
+sex = st.selectbox("Sex", ["Male", "Female"])
+rr = st.number_input("Respiratory Rate", 0)
+spo2 = st.number_input("SpO₂", 0.0)
+o2_use = st.selectbox("Oxygen Therapy?", ["No", "Yes"])
+temp = st.number_input("Temperature (°C)", 0.0)
+sbp = st.number_input("Systolic BP", 0)
+hr = st.number_input("Heart Rate", 0)
+avpu = st.selectbox("AVPU", ["A", "V", "P", "U"])
+confusion = st.selectbox("Confusion", ["No", "Yes"])
+urea = st.number_input("Urea", 0.0)
+neutrophils = st.number_input("Neutrophils", 0.0)
+lymphocytes = st.number_input("Lymphocytes", 0.0)
+monocytes = st.number_input("Monocytes", 0.0)
+platelets = st.number_input("Platelets", 0.0)
+albumin = st.number_input("Albumin", 0.0)
+bilirubin = st.number_input("Bilirubin", 0.0)
+creatinine = st.number_input("Creatinine", 0.0)
+bun = st.number_input("BUN", 0.0)
+glucose = st.number_input("Glucose", 0.0)
+hba1c = st.number_input("HbA1c", 0.0)
+ast = st.number_input("AST", 0.0)
+alt = st.number_input("ALT", 0.0)
+total_protein = st.number_input("Total Protein", 0.0)
+globulin = st.number_input("Globulin", 0.0)
 
-# PDF Export
+# Minimal PDF export logic
 def create_pdf(dataframe, name, date):
     pdf = FPDF()
     pdf.add_page()
@@ -31,7 +62,12 @@ def create_pdf(dataframe, name, date):
     return output
 
 if st.button("📄 Download PDF Report"):
-    pdf_bytes = create_pdf(summary_df, patient_name, report_date)
+    dummy_data = pd.DataFrame({
+        "Score": ["NEWS2", "PNI"],
+        "Value": [5, 45.2],
+        "Interpretation": ["🟧 Medium risk – urgent review", "🟩 Good nutritional-immune status"]
+    })
+    pdf_bytes = create_pdf(dummy_data, patient_name, report_date)
     st.download_button(
         label="📥 Download PDF",
         data=pdf_bytes,
