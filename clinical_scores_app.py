@@ -7,7 +7,7 @@ import math
 
 # 🧑‍⚕️ Patient Info Input
 st.title("Clinical Risk Score Analyzer")
-st.subheader("🧑‍⚕️ Patient Information")
+st.subheader("Patient Information")
 patient_name = st.text_input("Patient Name")
 report_date = st.date_input("Report Date")
 
@@ -38,6 +38,10 @@ alt = st.number_input("ALT", 0.0)
 total_protein = st.number_input("Total Protein", 0.0)
 globulin = st.number_input("Globulin", 0.0)
 
+# Clean interpretation without emojis
+def clean_interpretation(text):
+    return ''.join(char for char in text if ord(char) < 128)
+
 # Minimal PDF export logic
 def create_pdf(dataframe, name, date):
     pdf = FPDF()
@@ -51,9 +55,10 @@ def create_pdf(dataframe, name, date):
     col_widths = [40, 30, 120]
 
     for i, row in dataframe.iterrows():
+        interp = clean_interpretation(row['Interpretation'])
         pdf.cell(col_widths[0], 10, str(row['Score']), 1)
         pdf.cell(col_widths[1], 10, str(row['Value']), 1)
-        pdf.cell(col_widths[2], 10, str(row['Interpretation']), 1)
+        pdf.cell(col_widths[2], 10, str(interp), 1)
         pdf.ln()
 
     output = BytesIO()
@@ -61,15 +66,15 @@ def create_pdf(dataframe, name, date):
     output.seek(0)
     return output
 
-if st.button("📄 Download PDF Report"):
+if st.button("Download PDF Report"):
     dummy_data = pd.DataFrame({
         "Score": ["NEWS2", "PNI"],
         "Value": [5, 45.2],
-        "Interpretation": ["🟧 Medium risk – urgent review", "🟩 Good nutritional-immune status"]
+        "Interpretation": ["Medium risk – urgent review", "Good nutritional-immune status"]
     })
     pdf_bytes = create_pdf(dummy_data, patient_name, report_date)
     st.download_button(
-        label="📥 Download PDF",
+        label="Download PDF",
         data=pdf_bytes,
         file_name=f"{patient_name}_clinical_score_summary.pdf",
         mime="application/pdf"
