@@ -60,30 +60,67 @@ def calculate_scores():
     elif 91 <= hr <= 110: news2 += 1
     if temp <= 35.0 or temp >= 39.1: news2 += 3
     elif 38.1 <= temp <= 39.0: news2 += 1
-    if avpu == "V": news2 += 3
-    elif avpu == "P" or avpu == "U": news2 += 3
+    if avpu != "A": news2 += 3
 
-    if news2 >= 7:
-        news2_note = "High risk – urgent response"
-    elif news2 >= 5:
-        news2_note = "Medium risk – urgent review"
-    elif news2 >= 1:
-        news2_note = "Low risk – monitor"
-    else:
-        news2_note = "No risk"
+    news2_note = "High risk – urgent response" if news2 >= 7 else "Medium risk – urgent review" if news2 >= 5 else "Low risk – monitor" if news2 >= 1 else "No risk"
     scores.append(["NEWS2", news2, news2_note])
 
     # PNI
     pni = albumin * 10 + 0.005 * lymphocytes * 1000
-    if pni >= 45:
-        pni_note = "Good nutritional-immune status"
-    elif 40 <= pni < 45:
-        pni_note = "Mild malnutrition/inflammation"
-    else:
-        pni_note = "Severe malnutrition/inflammation"
+    pni_note = "Good nutritional-immune status" if pni >= 45 else "Mild malnutrition/inflammation" if pni >= 40 else "Severe malnutrition/inflammation"
     scores.append(["PNI", round(pni, 2), pni_note])
 
-    # More scores can be added here using similar logic
+    # SII
+    sii = (neutrophils * platelets) / (lymphocytes + 1e-5)
+    sii_note = "High inflammation" if sii > 900 else "Moderate inflammation" if sii > 600 else "Low inflammation"
+    scores.append(["SII", round(sii, 2), sii_note])
+
+    # SIRI
+    siri = (neutrophils * monocytes) / (lymphocytes + 1e-5)
+    siri_note = "High immune response" if siri > 1.5 else "Moderate immune response" if siri > 1.0 else "Low immune response"
+    scores.append(["SIRI", round(siri, 2), siri_note])
+
+    # CURB-65
+    curb = 0
+    if confusion == "Yes": curb += 1
+    if urea > 7: curb += 1
+    if rr >= 30: curb += 1
+    if sbp < 90: curb += 1
+    if age >= 65: curb += 1
+    curb_note = "Severe pneumonia – consider ICU" if curb >= 3 else "Moderate – hospitalize" if curb == 2 else "Mild – outpatient possible"
+    scores.append(["CURB-65", curb, curb_note])
+
+    # ALBI
+    albi = (math.log10(bilirubin + 1e-5) * 0.66) + (albumin * -0.085)
+    albi_note = "Grade 3 – Poor liver function" if albi > -1.39 else "Grade 2 – Moderate" if albi > -2.60 else "Grade 1 – Good liver function"
+    scores.append(["ALBI", round(albi, 2), albi_note])
+
+    # eGFR (MDRD)
+    egfr = 175 * (creatinine ** -1.154) * (age ** -0.203) * (0.742 if sex == "Female" else 1)
+    egfr_note = "Normal" if egfr >= 90 else "Mild CKD" if egfr >= 60 else "Moderate CKD" if egfr >= 30 else "Severe CKD"
+    scores.append(["eGFR", round(egfr, 2), egfr_note])
+
+    # UAR
+    uar = urea / albumin if albumin else 0
+    uar_note = "High catabolism/inflammation" if uar > 10 else "Moderate" if uar > 6 else "Normal"
+    scores.append(["UAR", round(uar, 2), uar_note])
+
+    # SHR
+    if hba1c > 0:
+        estimated_mean_glucose = (28.7 * hba1c) - 46.7
+        shr = glucose / estimated_mean_glucose
+        shr_note = "Stress hyperglycemia" if shr > 1.14 else "Expected glycemic profile"
+        scores.append(["SHR", round(shr, 2), shr_note])
+
+    # ALT/Platelet ratio
+    alt_platelet = alt / platelets if platelets else 0
+    alt_note = "Possible liver fibrosis" if alt_platelet > 0.02 else "Low risk"
+    scores.append(["ALT/Platelet", round(alt_platelet, 4), alt_note])
+
+    # Globulin/Total Protein
+    gtp = globulin / total_protein if total_protein else 0
+    gtp_note = "High immune activity" if gtp > 0.5 else "Normal"
+    scores.append(["Globulin/TP", round(gtp, 2), gtp_note])
 
     return pd.DataFrame(scores, columns=["Score", "Value", "Interpretation"])
 
