@@ -11,6 +11,10 @@ st.subheader("Patient Information")
 patient_name = st.text_input("Patient Name")
 report_date = st.date_input("Report Date")
 
+# Unit toggle for international users
+unit_option = st.radio("Select units for protein measurements:", ["g/dL", "g/L"], index=0)
+unit_multiplier = 10 if unit_option == "g/dL" else 1
+
 # Inputs
 age = st.number_input("Age", 0)
 sex = st.selectbox("Sex", ["Male", "Female"])
@@ -28,20 +32,26 @@ neutrophils = st.number_input("Neutrophils", 0.0)
 lymphocytes = st.number_input("Lymphocytes", 0.0)
 monocytes = st.number_input("Monocytes", 0.0)
 platelets = st.number_input("Platelets", 0.0)
-albumin = st.number_input("Albumin", 0.0)
-bilirubin = st.number_input("Bilirubin", 0.0)
+albumin = st.number_input(f"Albumin ({unit_option})", 0.0)
+bilirubin = st.number_input("Bilirubin (mg/dL)", 0.0)
 creatinine = st.number_input("Creatinine", 0.0)
 bun = st.number_input("BUN", 0.0)
 glucose = st.number_input("Glucose", 0.0)
 hba1c = st.number_input("HbA1c", 0.0)
 ast = st.number_input("AST", 0.0)
 alt = st.number_input("ALT", 0.0)
-total_protein = st.number_input("Total Protein", 0.0)
-globulin = st.number_input("Globulin", 0.0)
+total_protein = st.number_input(f"Total Protein ({unit_option})", 0.0)
+globulin = st.number_input(f"Globulin ({unit_option})", 0.0)
 
 # Score calculations
 def calculate_scores():
     scores = []
+
+    # Convert units
+    bilirubin_umol = bilirubin * 17.1  # mg/dL to μmol/L
+    albumin_gl = albumin * unit_multiplier  # g/dL or g/L to g/L
+    total_protein_gl = total_protein * unit_multiplier
+    globulin_gl = globulin * unit_multiplier
 
     # NEWS2
     news2 = 0
@@ -66,7 +76,7 @@ def calculate_scores():
     scores.append(["NEWS2", news2, news2_note])
 
     # PNI
-    pni = albumin * 10 + 0.005 * lymphocytes * 1000
+    pni = albumin_gl * 1 + 0.005 * lymphocytes * 1000
     pni_note = "Good nutritional-immune status" if pni >= 45 else "Mild malnutrition/inflammation" if pni >= 40 else "Severe malnutrition/inflammation"
     scores.append(["PNI", round(pni, 2), pni_note])
 
@@ -91,7 +101,7 @@ def calculate_scores():
     scores.append(["CURB-65", curb, curb_note])
 
     # ALBI
-    albi = (math.log10(bilirubin + 1e-5) * 0.66) + (albumin * -0.085)
+    albi = (math.log10(bilirubin_umol + 1e-5) * 0.66) + (albumin_gl * -0.085)
     albi_note = "Grade 3 – Poor liver function" if albi > -1.39 else "Grade 2 – Moderate" if albi > -2.60 else "Grade 1 – Good liver function"
     scores.append(["ALBI", round(albi, 2), albi_note])
 
@@ -101,7 +111,7 @@ def calculate_scores():
     scores.append(["eGFR", round(egfr, 2), egfr_note])
 
     # UAR
-    uar = urea / albumin if albumin else 0
+    uar = urea / albumin_gl if albumin_gl else 0
     uar_note = "High catabolism/inflammation" if uar > 10 else "Moderate" if uar > 6 else "Normal"
     scores.append(["UAR", round(uar, 2), uar_note])
 
@@ -118,7 +128,7 @@ def calculate_scores():
     scores.append(["ALT/Platelet", round(alt_platelet, 4), alt_note])
 
     # Globulin/Total Protein
-    gtp = globulin / total_protein if total_protein else 0
+    gtp = globulin_gl / total_protein_gl if total_protein_gl else 0
     gtp_note = "High immune activity" if gtp > 0.5 else "Normal"
     scores.append(["Globulin/TP", round(gtp, 2), gtp_note])
 
