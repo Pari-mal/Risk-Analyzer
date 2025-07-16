@@ -15,11 +15,13 @@ report_date = st.date_input("Report Date")
 unit_option = st.radio("Select units for protein measurements:", ["g/dL", "g/L"], index=0)
 unit_multiplier = 10 if unit_option == "g/dL" else 1
 
-# Urea and BUN inputs
+# Urea and BUN inputs with conversion toggle
 urea_unit = st.radio("Urea unit:", ["mg/dL", "mmol/L"], index=0)
 urea_input = st.number_input("Urea", 0.0)
 urea = urea_input * 0.357 if urea_unit == "mg/dL" else urea_input
-bun = st.number_input("BUN (mg/dL)", 0.0)
+bun_unit = st.radio("BUN unit:", ["mg/dL", "mmol/L"], index=0)
+bun_input = st.number_input("BUN", 0.0)
+bun = bun_input if bun_unit == "mg/dL" else bun_input * 2.8
 
 # Inputs
 age = st.number_input("Age", 0)
@@ -163,8 +165,8 @@ if st.button("Calculate Scores"):
     st.dataframe(df)
 
     st.subheader("Interpretations")
-    for interp in interpretations:
-        st.markdown(f"- {interp}")
+    for score, interpretation in zip(scores, interpretations):
+        st.markdown(f"**{score[0]}**: {interpretation}")
 
     # PDF export
     pdf = FPDF()
@@ -172,12 +174,8 @@ if st.button("Calculate Scores"):
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt=f"Patient: {patient_name} | Date: {report_date}", ln=True)
     pdf.cell(200, 10, txt="Clinical Risk Scores:", ln=True)
-    for score, value in scores:
-        pdf.cell(200, 10, txt=f"{score}: {value}", ln=True)
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Interpretations:", ln=True)
-    for interp in interpretations:
-        pdf.multi_cell(0, 10, txt=f"- {interp}")
+    for (score, value), interpretation in zip(scores, interpretations):
+        pdf.multi_cell(0, 10, txt=f"{score}: {value} - {interpretation}")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
