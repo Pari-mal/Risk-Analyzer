@@ -1,160 +1,202 @@
 import streamlit as st
-import numpy as np
-import pandas as pd
 from fpdf import FPDF
 import math
 import tempfile
+from datetime import date
 
-# 🧑‍⚕️ Patient Info Input
-st.title("Clinical Risk Score Analyzer")
-st.subheader("Patient Information")
+# --- Unit Toggles ---
+unit_option = st.selectbox("Select protein units", ["g/L", "g/dL"])
+bun_unit = st.selectbox("Select BUN/Urea units", ["mg/dL", "mmol/L"])
+conv_factor = 1 if unit_option == "g/L" else 10
+
+# --- Patient Info ---
 patient_name = st.text_input("Patient Name")
-report_date = st.date_input("Report Date")
+report_date = st.date_input("Report Date", value=date.today())
 
-# Unit toggle for international users
-unit_option = st.radio("Select units for protein measurements:", ["g/dL", "g/L"], index=0)
-unit_multiplier = 10 if unit_option == "g/dL" else 1
-
-# Urea and BUN inputs with conversion toggle
-urea_unit = st.radio("Urea unit:", ["mg/dL", "mmol/L"], index=0)
-urea_input = st.number_input("Urea", 0.0)
-
-bun_unit = st.radio("BUN unit:", ["mg/dL", "mmol/L"], index=0)
-bun_input = st.number_input("BUN", 0.0)
-bun = bun_input if bun_unit == "mg/dL" else bun_input * 2.8
-
-st.write(f"Converted Urea (mmol/L): {urea_input * 0.357:.2f}" if urea_unit == "mg/dL" else f"Entered Urea (mmol/L): {urea_input:.2f}")
-st.write(f"Converted BUN (mg/dL): {bun_input:.2f}" if bun_unit == "mg/dL" else f"Converted BUN (mg/dL): {bun:.2f}")
-
-# Prefer urea input, else derive from BUN if urea input is zero
-urea = urea_input * 0.357 if urea_unit == "mg/dL" else urea_input
-if urea == 0 and bun > 0:
-    urea = bun / 2.8
-
-# Add more clinical inputs and calculations below this block as needed
-
-# Clinical and biochemical inputs
-age = st.number_input("Age", 0)
+# --- Input Fields ---
+age = st.number_input("Age", min_value=1, max_value=120, value=50)
 sex = st.selectbox("Sex", ["Male", "Female"])
-rr = st.number_input("Respiratory Rate", 0)
-spo2 = st.number_input("SpO₂ (%)", 0.0)
-o2_use = st.selectbox("Oxygen Therapy?", ["No", "Yes"])
-temp_f = st.number_input("Temperature (°F)", 94.0, 108.0)
-temp = (temp_f - 32) * 5.0 / 9.0
-sbp = st.number_input("Systolic Blood Pressure", 0)
-hr = st.number_input("Heart Rate", 0)
-avpu = st.selectbox("AVPU Scale", ["A", "V", "P", "U"])
-confusion = st.selectbox("New Confusion?", ["No", "Yes"])
-neutrophils = st.number_input("Neutrophils", 0.0)
-lymphocytes = st.number_input("Lymphocytes", 0.0)
-monocytes = st.number_input("Monocytes", 0.0)
-platelets = st.number_input("Platelets", 0.0)
-albumin = st.number_input(f"Albumin ({unit_option})", 0.0) * unit_multiplier
-bilirubin = st.number_input("Bilirubin (mg/dL)", 0.0)
-creatinine = st.number_input("Creatinine (mg/dL)", 0.0)
-glucose = st.number_input("Admission Glucose (mg/dL)", 0.0)
-hba1c = st.number_input("HbA1c (%)", 0.0)
-ast = st.number_input("AST (U/L)", 0.0)
-alt = st.number_input("ALT (U/L)", 0.0)
-total_protein = st.number_input(f"Total Protein ({unit_option})", 0.0) * unit_multiplier
-globulin = st.number_input(f"Globulin ({unit_option})", 0.0) * unit_multiplier
+creatinine = st.number_input("Creatinine (mg/dL)", min_value=0.1, max_value=15.0, value=1.0)
+glucose_admission = st.number_input("Admission Glucose (mg/dL)", min_value=50.0, max_value=600.0, value=120.0)
+hba1c = st.number_input("HbA1c (%)", min_value=3.0, max_value=15.0, value=6.0)
 
-# Derived parameters
-globulin_ratio = globulin / total_protein if total_protein > 0 else 0
-alt_platelet_ratio = alt / platelets if platelets > 0 else 0
-albi = (math.log10(bilirubin * 17.1) * 0.66) + (-0.085 * albumin) if bilirubin > 0 and albumin > 0 else 0
-egfr = 186 * (creatinine ** -1.154) * (age ** -0.203) if creatinine > 0 and age > 0 else 0
-if sex == "Female":
-    egfr *= 0.742
+albumin_raw = st.number_input("Albumin", min_value=1.0, max_value=6.0 if unit_option=="g/dL" else 60.0, value=3.5 if unit_option=="g/dL" else 35.0)
+total_protein_raw = st.number_input("Total Protein", min_value=3.0, max_value=10.0 if unit_option=="g/dL" else 100.0, value=7.0 if unit_option=="g/dL" else 70.0)
+globulin_raw = total_protein_raw - albumin_raw
 
-pn_index = (10 * albumin) + (0.005 * platelets)
-sii = (neutrophils * platelets) / lymphocytes if lymphocytes > 0 else 0
-siri = (neutrophils * monocytes) / lymphocytes if lymphocytes > 0 else 0
-shr = glucose / ((28.7 * hba1c) - 46.7) if hba1c > 0 else 0
+bilirubin_mg = st.number_input("Bilirubin (mg/dL)", min_value=0.1, max_value=10.0, value=1.0)
+bilirubin = bilirubin_mg * 17.1
 
-# CURB-65
-curb = 0
-if confusion == "Yes": curb += 1
-if bun >= 20: curb += 1
-if rr >= 30: curb += 1
-if sbp < 90: curb += 1
-if age >= 65: curb += 1
+alt = st.number_input("ALT (U/L)", min_value=1.0, max_value=1000.0, value=30.0)
+platelets = st.number_input("Platelets (/mm³)", min_value=10, max_value=1000, value=200)
 
-# NEWS2
-news2 = 0
-news2 += 3 if rr <= 8 or rr >= 25 else 1 if rr in [21, 22, 23, 24] else 0
-news2 += 2 if spo2 < 92 else 1 if spo2 in [92, 93] else 0
-news2 += 2 if o2_use == "Yes" else 0
-news2 += 3 if temp < 35 or temp > 39.1 else 1 if temp in [38.1, 39.0] else 0
-news2 += 3 if sbp <= 90 or sbp >= 220 else 2 if sbp in range(91, 101) else 1 if sbp in range(101, 111) else 0
-news2 += 3 if hr <= 40 or hr >= 131 else 2 if hr in range(111, 131) else 1 if hr in range(91, 111) else 0
-news2 += 0 if avpu == "A" else 3
+bun_input = st.number_input("BUN or Urea", min_value=1.0, max_value=100.0, value=10.0)
+bun_mg_dl = bun_input if bun_unit == "mg/dL" else bun_input * 2.8
 
-# Score summary
-scores = [
-    ("NEWS2", news2),
-    ("CURB-65", curb),
-    ("PNI", round(pn_index, 2)),
-    ("SII", round(sii, 2)),
-    ("SIRI", round(siri, 2)),
-    ("ALBI", round(albi, 3)),
-    ("eGFR", round(egfr, 1)),
-    ("UAR", round(urea / albumin, 3) if albumin > 0 else 0),
-    ("SHR", round(shr, 3)),
-    ("ALT/PLT Ratio", round(alt_platelet_ratio, 3)),
-    ("Globulin/TP Ratio", round(globulin_ratio, 3))
+lymphocytes = st.number_input("Lymphocytes (/mm³)", min_value=100, max_value=10000, value=1500)
+neutrophils = st.number_input("Neutrophils (/mm³)", min_value=10, max_value=1000, value=300)
+monocytes = st.number_input("Monocytes (/mm³)", min_value=1, max_value=1000, value=50)
+
+albumin = albumin_raw * conv_factor
+albumin_g_dl = albumin / 10
+
+# --- Calculation Functions ---
+def calculate_albi(albumin, bilirubin):
+    return (math.log10(bilirubin) * 0.66) + (albumin * -0.085)
+
+def calculate_pni(albumin_g_dl, lymphocytes):
+    return (10 * albumin_g_dl) + (0.005 * lymphocytes)
+
+def calculate_sii(neutrophils, platelets, lymphocytes):
+    return (neutrophils * platelets) / lymphocytes
+
+def calculate_siri(neutrophils, monocytes, lymphocytes):
+    return (neutrophils * monocytes) / lymphocytes
+
+def calculate_egfr(creatinine, age, sex):
+    k = 0.742 if sex == "Female" else 1
+    return 186 * (creatinine ** -1.154) * (age ** -0.203) * k
+
+def calculate_uar(bun, albumin):
+    return bun / albumin_g_dl
+
+def calculate_shr(glucose, hba1c):
+    est_avg_glucose = (28.7 * hba1c) - 46.7
+    return glucose / est_avg_glucose if est_avg_glucose > 0 else 0
+
+def calculate_alt_platelet_ratio(alt, platelets):
+    return alt / platelets if platelets > 0 else 0
+
+def calculate_globulin_tp_ratio(globulin, total_protein):
+    return globulin / total_protein if total_protein > 0 else 0
+
+# --- Interpretation Bands ---
+def interpret_albi(value):
+    return "Normal (Grade 1)" if value <= -2.60 else "Impaired (Grade 2/3)"
+
+def interpret_pni(value):
+    if value <= 40:
+        return "Poor nutritional status"
+    elif value <= 45:
+        return "Borderline nutritional status"
+    else:
+        return "Good nutritional status"
+
+def interpret_sii(value):
+    if value <= 500:
+        return "Low inflammation"
+    elif value <= 1000:
+        return "Mild inflammation"
+    elif value <= 1500:
+        return "Moderate inflammation"
+    elif value <= 2000:
+        return "High inflammation"
+    else:
+        return "Very high inflammation"
+
+def interpret_siri(value):
+    if value <= 0.5:
+        return "Low inflammation"
+    elif value <= 1.0:
+        return "Mild inflammation"
+    elif value <= 1.5:
+        return "Moderate inflammation"
+    else:
+        return "High inflammation"
+
+def interpret_egfr(value):
+    if value >= 90:
+        return "Normal"
+    elif value >= 60:
+        return "Mild CKD"
+    elif value >= 30:
+        return "Moderate CKD"
+    elif value >= 15:
+        return "Severe CKD"
+    else:
+        return "Kidney failure"
+
+def interpret_uar(value):
+    if value <= 0.15:
+        return "Normal"
+    elif value <= 0.25:
+        return "Borderline"
+    else:
+        return "High risk"
+
+def interpret_shr(value):
+    if value <= 0.9:
+        return "Low risk"
+    elif value <= 1.2:
+        return "Moderate risk"
+    else:
+        return "High risk"
+
+def interpret_alt_platelet(value):
+    if value <= 0.3:
+        return "Normal"
+    else:
+        return "Abnormal"
+
+def interpret_globulin_tp(value):
+    if value <= 0.5:
+        return "Low Globulin"
+    elif value <= 0.7:
+        return "Normal"
+    else:
+        return "High Globulin"
+
+# --- PDF Export ---
+class PDFReport(FPDF):
+    def header(self):
+        self.set_font("Arial", 'B', 14)
+        self.cell(0, 10, "Clinical Score Summary", ln=True, align='C')
+        self.ln(5)
+        self.set_font("Arial", '', 12)
+        self.cell(0, 10, f"Patient: {patient_name}     Date: {report_date}", ln=True)
+        self.ln(10)
+
+    def add_results(self, data):
+        self.set_font("Arial", size=12)
+        for name, value, interpretation in data:
+            self.cell(0, 10, f"{name}: {value:.2f} — {interpretation}", ln=True)
+
+# --- Score Calculations ---
+albi = calculate_albi(albumin, bilirubin)
+pni = calculate_pni(albumin_g_dl, lymphocytes)
+sii = calculate_sii(neutrophils, platelets, lymphocytes)
+siri = calculate_siri(neutrophils, monocytes, lymphocytes)
+egfr = calculate_egfr(creatinine, age, sex)
+
+uar = calculate_uar(bun_mg_dl, albumin)
+shr = calculate_shr(glucose_admission, hba1c)
+alt_pl_ratio = calculate_alt_platelet_ratio(alt, platelets)
+glob_tp_ratio = calculate_globulin_tp_ratio(globulin_raw * conv_factor, total_protein_raw * conv_factor)
+
+results = [
+    ("ALBI", albi, interpret_albi(albi)),
+    ("PNI", pni, interpret_pni(pni)),
+    ("SII", sii, interpret_sii(sii)),
+    ("SIRI", siri, interpret_siri(siri)),
+    ("eGFR", egfr, interpret_egfr(egfr)),
+    ("UAR", uar, interpret_uar(uar)),
+    ("SHR", shr, interpret_shr(shr)),
+    ("ALT/PLT Ratio", alt_pl_ratio, interpret_alt_platelet(alt_pl_ratio)),
+    ("Globulin/TP Ratio", glob_tp_ratio, interpret_globulin_tp(glob_tp_ratio))
 ]
 
-# Display scores and interpretations
-st.subheader("Score Summary")
-interpretations = []
-for score, value in scores:
-    interpretation = "Normal"
-    if score == "NEWS2" and value >= 7:
-        interpretation = "High clinical risk"
-    elif score == "CURB-65" and value >= 3:
-        interpretation = "Severe pneumonia risk"
-    elif score == "ALBI" and value > -2.6:
-        interpretation = "Abnormal liver reserve"
-    elif score == "eGFR" and value < 60:
-        interpretation = "Impaired renal function"
-    elif score == "SHR" and value > 1.14:
-        interpretation = "Significant stress hyperglycemia"
+# --- Display Results ---
+st.title("Clinical Score Calculator")
+for name, value, interpretation in results:
+    st.write(f"**{name}**: {value:.2f} — {interpretation}")
 
-    flag = "❗" if interpretation != "Normal" else ""
-    st.markdown(f"{flag} **{score}**: {value} — {interpretation}")
-    interpretations.append(interpretation)
-
-# PDF export
-if st.button("Download PDF Report"):
-    pdf = FPDF()
+# --- Export PDF ---
+if st.button("Export to PDF"):
+    pdf = PDFReport()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Patient: {patient_name} | Date: {report_date}", ln=True)
-    pdf.cell(200, 10, txt=f"Protein units: {unit_option}, Urea: {urea_unit}, BUN: {bun_unit}, Temp in °F", ln=True)
-    pdf.cell(200, 10, txt="Clinical Risk Scores:", ln=True)
-
-    for (score, value), interpretation in zip(scores, interpretations):
-        flag = "❗" if (score == "NEWS2" and value >= 7) or (score == "CURB-65" and value >= 3) else ""
-        pdf.multi_cell(0, 10, txt=f"{flag}{score}: {value} - {interpretation}")
+    pdf.add_results(results)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
         pdf.output(tmpfile.name)
         with open(tmpfile.name, "rb") as f:
-            st.download_button("Download Report", f, file_name="clinical_scores_report.pdf")
-st.subheader("Score Summary")
-for score, value in scores:
-    interpretation = "Normal"
-    if score == "NEWS2" and value >= 7:
-        interpretation = "High clinical risk"
-    elif score == "CURB-65" and value >= 3:
-        interpretation = "Severe pneumonia risk"
-    elif score == "ALBI" and value > -2.6:
-        interpretation = "Abnormal liver reserve"
-    elif score == "eGFR" and value < 60:
-        interpretation = "Impaired renal function"
-    elif score == "SHR" and value > 1.14:
-        interpretation = "Significant stress hyperglycemia"
-
-    flag = "❗" if interpretation != "Normal" else ""
-    st.markdown(f"{flag} **{score}**: {value} — {interpretation}")
+            st.download_button("Download PDF Report", f, file_name="clinical_scores.pdf")
