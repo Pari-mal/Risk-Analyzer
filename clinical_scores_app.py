@@ -32,10 +32,10 @@ spo2 = st.number_input("SpO₂ (%)", min_value=70, max_value=100, value=98)
 o2_required = st.selectbox("Oxygen Required?", ["No", "Yes"])
 
 # --- CBC ---
-neutrophils = st.number_input("Neutrophils (/mm³)", value=5000)
-lymphocytes = st.number_input("Lymphocytes (/mm³)", value=1500)
-monocytes = st.number_input("Monocytes (/mm³)", value=500)
-platelets = st.number_input("Platelets (/mm³)", value=250000)
+neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000")).replace(',', '.'))
+lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500")).replace(',', '.'))
+monocytes = float(str(st.text_input("Monocytes (/mm³)", "500")).replace(',', '.'))
+platelets = float(str(st.text_input("Platelets (/mm³)", "250000")).replace(',', '.'))
 
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
@@ -96,10 +96,10 @@ def calculate_pni():
     return albumin + 5 * (lymphocytes / 1000)
 
 def calculate_siri():
-    return (neutrophils * monocytes) / (lymphocytes + 1)
+    return (float(neutrophils) * float(monocytes)) / (float(lymphocytes) + 1) / (lymphocytes + 1)
 
 def calculate_sii():
-    return (neutrophils * platelets) / (lymphocytes + 1)
+    return (float(neutrophils) * float(platelets)) / (float(lymphocytes) + 1) / (lymphocytes + 1)
 
 def calculate_albi():
     albumin = albumin_raw * conv_factor
@@ -136,7 +136,7 @@ if st.button("Calculate and Download Report"):
         ("Globulin/TP Ratio", round(calculate_globulin_ratio(), 3), [(0.4, "Low"), (0.5, "Normal"), (0.6, "Elevated")], "Immune Protein Balance"),
         ("eGFR", round(calculate_egfr(), 1), [(0, "Failure"), (15, "Severe"), (30, "Moderate"), (60, "Mild"), (90, "Normal")], "Kidney Function"),
         ("UAR", round(calculate_uar(), 3), [(0.2, "Normal"), (0.3, "Elevated"), (0.5, "High")], "Renal-Protein Balance"),
-        ("SHR", round(calculate_shr(), 3), [(1.0, "Normal"), (1.2, "Stress"), (1.5, "Critical")], "Stress Hyperglycemia")
+        ("SHR", round(calculate_shr(), 3), [(0, "Low"), (1.14, "Moderate Risk"), (1.4, "High Risk")], "Stress Hyperglycemia")
     ]
 
     pdf = FPDF()
