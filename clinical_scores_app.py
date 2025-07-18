@@ -32,10 +32,14 @@ spo2 = st.number_input("SpO₂ (%)", min_value=70, max_value=100, value=98)
 o2_required = st.selectbox("Oxygen Required?", ["No", "Yes"])
 
 # --- CBC ---
-neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000")).replace(',', '.'))
-lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500")).replace(',', '.'))
-monocytes = float(str(st.text_input("Monocytes (/mm³)", "500")).replace(',', '.'))
-platelets = float(str(st.text_input("Platelets (/mm³)", "250000")).replace(',', '.'))
+neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000", help="Enter absolute count (e.g., 5000, not %)"))
+                    .replace(',', '.'))
+lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500", help="Enter absolute count (e.g., 1500, not % or decimal)"))
+                    .replace(',', '.'))
+monocytes = float(str(st.text_input("Monocytes (/mm³)", "500", help="Enter absolute count (e.g., 500, not %)"))
+                    .replace(',', '.'))
+platelets = float(str(st.text_input("Platelets (/mm³)", "250000", help="Enter full count (e.g., 250000, not in lakhs or thousands)"))
+                    .replace(',', '.'))
 
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
