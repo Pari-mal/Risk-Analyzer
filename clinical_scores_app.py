@@ -128,13 +128,13 @@ if st.button("Calculate and Download Report"):
     results = [
         ("NEWS2", calculate_news2(), [(0, "Normal"), (4, "Low"), (6, "Moderate"), (20, "High")], "Acute Deterioration Risk"),
         ("CURB-65", calculate_curb65(), [(0, "Low"), (1, "Mild"), (2, "Moderate"), (3, "High")], "Pneumonia Severity"),
-        ("PNI", round(calculate_pni(), 2), [(45, "Normal"), (40, "Moderate"), (35, "Severe")], "Nutritional Status"),
+        ("PNI", round(calculate_pni(), 2), [(0, "Severe"), (35, "Moderate"), (40, "Mild"), (45, "Normal")], "Nutritional Status"),
         ("SIRI", round(calculate_siri(), 2), [(0.8, "Normal"), (1.5, "Elevated"), (2.5, "High")], "Inflammatory Response"),
         ("SII", round(calculate_sii(), 2), [(300, "Normal"), (600, "Moderate"), (1000, "High")], "Immune Inflammation"),
         ("ALBI", round(calculate_albi(), 3), [(-2.6, "Grade 1"), (-1.39, "Grade 2"), (10, "Grade 3")], "Liver Function"),
         ("ALT/PLT Ratio", round(calculate_alt_plat(), 3), [(0.2, "Normal"), (0.3, "Mild"), (0.5, "Significant")], "Liver Injury Index"),
         ("Globulin/TP Ratio", round(calculate_globulin_ratio(), 3), [(0.4, "Low"), (0.5, "Normal"), (0.6, "Elevated")], "Immune Protein Balance"),
-        ("eGFR", round(calculate_egfr(), 1), [(60, "Normal"), (30, "Moderate"), (15, "Severe")], "Kidney Function"),
+        ("eGFR", round(calculate_egfr(), 1), [(0, "Failure"), (15, "Severe"), (30, "Moderate"), (60, "Mild"), (90, "Normal")], "Kidney Function"),
         ("UAR", round(calculate_uar(), 3), [(0.2, "Normal"), (0.3, "Elevated"), (0.5, "High")], "Renal-Protein Balance"),
         ("SHR", round(calculate_shr(), 3), [(1.0, "Normal"), (1.2, "Stress"), (1.5, "Critical")], "Stress Hyperglycemia")
     ]
