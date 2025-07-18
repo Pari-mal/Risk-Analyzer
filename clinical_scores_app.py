@@ -3,6 +3,7 @@ import streamlit as st
 from fpdf import FPDF
 import tempfile
 from datetime import date
+import math
 
 # --- Header ---
 st.title("Clinical Risk Score Calculator")
@@ -32,14 +33,10 @@ spo2 = st.number_input("SpO₂ (%)", min_value=70, max_value=100, value=98)
 o2_required = st.selectbox("Oxygen Required?", ["No", "Yes"])
 
 # --- CBC ---
-neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000", help="Enter absolute count (e.g., 5000, not %)"))
-                    .replace(',', '.'))
-lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500", help="Enter absolute count (e.g., 1500, not % or decimal)"))
-                    .replace(',', '.'))
-monocytes = float(str(st.text_input("Monocytes (/mm³)", "500", help="Enter absolute count (e.g., 500, not %)"))
-                    .replace(',', '.'))
-platelets = float(str(st.text_input("Platelets (/mm³)", "250000", help="Enter full count (e.g., 250000, not in lakhs or thousands)"))
-                    .replace(',', '.'))
+neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000", help="Enter absolute count (e.g., 5000, not %)")).replace(',', '.'))
+lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500", help="Enter absolute count (e.g., 1500, not % or decimal)")).replace(',', '.'))
+monocytes = float(str(st.text_input("Monocytes (/mm³)", "500", help="Enter absolute count (e.g., 500, not %)")).replace(',', '.'))
+platelets = float(str(st.text_input("Platelets (/mm³)", "250000", help="Enter full count (e.g., 250000, not in lakhs or thousands)")).replace(',', '.'))
 
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
@@ -100,17 +97,17 @@ def calculate_pni():
     return albumin + 5 * (lymphocytes / 1000)
 
 def calculate_siri():
-    return (float(neutrophils) * float(monocytes)) / (float(lymphocytes) + 1) / (lymphocytes + 1)
+    return (float(neutrophils) * float(monocytes)) / (float(lymphocytes) + 1)
 
 def calculate_sii():
-    return (float(neutrophils) * float(platelets)) / (float(lymphocytes) + 1) / (lymphocytes + 1)
+    return (float(neutrophils) * float(platelets)) / (float(lymphocytes) + 1)
 
 def calculate_albi():
     albumin = albumin_raw * conv_factor
     return (math.log10(bilirubin) * 0.66) - (0.085 * albumin)
 
 def calculate_alt_plat():
-    return alt / platelets
+    return (alt * 1000) / platelets
 
 def calculate_globulin_ratio():
     return globulin_raw / total_protein_raw
@@ -127,7 +124,6 @@ def calculate_shr():
     return adm_glucose / est_glucose
 
 # PDF creation and download
-import math
 if st.button("Calculate and Download Report"):
     results = [
         ("NEWS2", calculate_news2(), [(0, "Normal"), (4, "Low"), (6, "Moderate"), (20, "High")], "Acute Deterioration Risk"),
