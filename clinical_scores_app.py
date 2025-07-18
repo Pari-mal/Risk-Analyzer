@@ -15,7 +15,7 @@ st.write(f"Date: {report_date}")
 # --- Unit Toggles ---
 protein_unit = st.radio("Select protein units", ["g/dL", "g/L"])
 bilirubin_unit = st.radio("Select bilirubin units", ["mg/dL", "µmol/L"])
-urea_unit = st.radio("Select Urea/BUN input", ["Urea (mmol/L)", "BUN (mg/dL)"])
+urea_unit = st.radio("Select Urea input", ["mmol/L", "mg/dL"])
 conv_factor = 10 if protein_unit == "g/dL" else 1
 
 # --- Demographics ---
@@ -40,8 +40,8 @@ platelets = st.number_input("Platelets (/mm³)", value=250000)
 
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
-urea_input = st.number_input("Urea or BUN", value=10.0)
-if urea_unit == "Urea (mmol/L)":
+urea_input = st.number_input("Urea", value=10.0)
+if urea_unit == "mmol/L":
     bun = urea_input * 2.8
 else:
     bun = urea_input
@@ -64,33 +64,25 @@ hba1c = st.number_input("HbA1c (%)", value=6.0)
 # --- Calculations ---
 def calculate_news2():
     score = 0
-    # Resp Rate
     if resp_rate <= 8 or resp_rate >= 25: score += 3
     elif 21 <= resp_rate <= 24: score += 2
     elif 9 <= resp_rate <= 11: score += 1
-    # SpO2
     if spo2 <= 91: score += 3
     elif 92 <= spo2 <= 93: score += 2
     elif 94 <= spo2 <= 95: score += 1
-    # Air or O2
     if o2_required == "Yes": score += 2
-    # Temperature °F
     temp_c = (temp_f - 32) * 5/9
     if temp_c < 35.0 or temp_c >= 39.1: score += 3
     elif 38.1 <= temp_c <= 39.0: score += 1
     elif 35.1 <= temp_c <= 36.0: score += 1
-    # Systolic BP
     if sbp <= 90 or sbp >= 220: score += 3
     elif 91 <= sbp <= 100: score += 2
     elif 101 <= sbp <= 110: score += 1
-    # Heart Rate
     if heart_rate <= 40 or heart_rate >= 131: score += 3
     elif 111 <= heart_rate <= 130: score += 2
     elif 91 <= heart_rate <= 110: score += 1
     elif 41 <= heart_rate <= 50: score += 1
-    # AVPU
     if avpu != "Alert": score += 3
-    # New Confusion (also included here like in CURB-65)
     if confusion == "Yes": score += 3
     return score
 
@@ -103,11 +95,30 @@ def calculate_curb65():
     if age >= 65: score += 1
     return score
 
-# ... (other calculation functions remain unchanged)
-
+# Results list (incomplete, shown for sample only)
 results = [
     ("NEWS2", calculate_news2(), [(0, "Normal"), (4, "Low"), (6, "Moderate"), (20, "High")], "Acute Deterioration Risk"),
-    # ... (other indices)
+    ("CURB-65", calculate_curb65(), [(0, "Low"), (1, "Mild"), (2, "Moderate"), (3, "High")], "Pneumonia Severity")
 ]
 
-# ... (PDF and display logic remain unchanged)
+if st.button("Calculate Scores"):
+    for name, value, bands, meaning in results:
+        interpretation = next((label for thresh, label in reversed(bands) if value >= thresh), "")
+        st.write(f"**{name}**: {value} — {interpretation} ({meaning})")
+
+    # --- PDF ---
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Clinical Score Report", ln=1, align="C")
+    pdf.cell(200, 10, txt=f"Patient: {patient_name}    Date: {report_date}", ln=2)
+    if diagnosis: pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=3)
+
+    for name, value, bands, meaning in results:
+        interpretation = next((label for thresh, label in reversed(bands) if value >= thresh), "")
+        pdf.cell(200, 10, txt=f"{name}: {value} — {interpretation} ({meaning})", ln=1)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
+        pdf.output(tmpfile.name)
+        with open(tmpfile.name, "rb") as f:
+            st.download_button("Download PDF Report", f, file_name="clinical_scores.pdf")
