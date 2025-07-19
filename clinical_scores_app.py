@@ -6,6 +6,36 @@ from datetime import date
 import math
 
 # --- Header ---
+# --- Helper Section ---
+with st.expander("ℹ️ How to Use This App"):
+    st.markdown("""
+    **Unit Selection Guidance:**
+
+    1. **Select**:
+       - `g/dL` for **proteins** (Albumin, Total Protein)
+       - `mg/dL` for **bilirubin** and **urea**
+    2. **CBC Input Format:**
+       - Use **absolute values**
+       - Examples:
+         - If Neutrophils = 9.4 /mm³ → enter `9400`
+         - If Monocytes = 0.5 → enter `500`
+         - If Platelets = 250 → enter `250000`
+    3. **Interpretation Bands:** See each index output below for the classification:
+
+       | **Index** | **Full Form** | **Interpretation Bands** |
+       |-----------|----------------|---------------------------|
+       | NEWS2 | National Early Warning Score 2 | Low / Medium / High |
+       | CURB-65 | Confusion, Urea, Respiratory, BP, Age ≥65 | Low / Intermediate / High |
+       | PNI | Prognostic Nutritional Index | Normal / Mild / Moderate / Severe |
+       | SII | Systemic Immune-Inflammation Index | Normal / Mild / Moderate / Severe |
+       | SIRI | Systemic Inflammation Response Index | Normal / Mild / Moderate / Severe |
+       | ALBI | Albumin-Bilirubin Score | Grade 1 / Grade 2 / Grade 3 |
+       | ALT/PLT Ratio | ALT to Platelet Ratio | Normal / Mild / Moderate / Severe |
+       | Globulin/TP Ratio | Globulin to Total Protein Ratio | Low / Normal / High |
+       | eGFR | Estimated Glomerular Filtration Rate | Normal / Mild / Moderate / Severe |
+       | UAR | Urea-to-Albumin Ratio | Normal / Mild / Moderate / Severe |
+       | SHR | Stress Hyperglycemia Ratio | Normal / Mild / Moderate / Severe |
+    """)
 st.title("Clinical Risk Score Calculator")
 report_date = date.today()
 patient_name = st.text_input("Patient Name")
