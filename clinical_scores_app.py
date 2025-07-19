@@ -91,7 +91,7 @@ def calculate_news2():
     if confusion == "Yes": score += 3
     return score, "Low" if score < 5 else "Medium" if score < 7 else "High"
 
-def calculate_curb65():
+def calculate_curb65(urea_mg_dl):
     score = 0
     if confusion == "Yes": score += 1
     if resp_rate >= 30: score += 1
@@ -103,7 +103,7 @@ def calculate_curb65():
 # Display results
 if st.button("Calculate Scores"):
     news2_score, news2_band = calculate_news2()
-    curb_score, curb_band = calculate_curb65()
+    curb_score, curb_band = calculate_curb65(urea_mg_dl)
 
     results = [
         ("NEWS2", news2_score, news2_band),
