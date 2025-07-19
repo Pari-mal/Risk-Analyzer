@@ -96,7 +96,7 @@ def calculate_curb65():
     if confusion == "Yes": score += 1
     if resp_rate >= 30: score += 1
     if sbp < 90: score += 1
-    if bun >= 20: score += 1
+    if urea >= 20: score += 1
     if age >= 65: score += 1
     return score, "Low" if score == 0 else "Intermediate" if score <= 2 else "High"
 
