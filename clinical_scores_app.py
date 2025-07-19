@@ -47,12 +47,14 @@ platelets_109 = platelets / 1000
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
 urea_input = st.number_input("Urea", value=10.0)
-bun = urea_input * 2.8 if urea_unit == "mmol/L" else urea_input
+urea_mg_dl = urea_input if urea_unit == "mg/dL" else urea_input / 0.357
+bun = urea_mg_dl  # CURB-65 requires mg/dL
 
 # --- Liver ---
 albumin_raw = st.number_input("Albumin", value=3.5 if protein_unit == "g/dL" else 35.0)
 total_protein_raw = st.number_input("Total Protein", value=7.0 if protein_unit == "g/dL" else 70.0)
 globulin_raw = total_protein_raw - albumin_raw
+albumin_mg_dl = albumin_raw if protein_unit == "g/dL" else albumin_raw / 10  # UAR requires g/dL
 
 bilirubin_input = st.number_input("Bilirubin", value=1.0)
 bilirubin = bilirubin_input * 17.1 if bilirubin_unit == "mg/dL" else bilirubin_input
@@ -87,7 +89,7 @@ def calculate_news2():
     elif 41 <= heart_rate <= 50: score += 1
     if avpu != "Alert": score += 3
     if confusion == "Yes": score += 3
-    return score
+    return score, "Low" if score < 5 else "Medium" if score < 7 else "High"
 
 def calculate_curb65():
     score = 0
@@ -96,53 +98,61 @@ def calculate_curb65():
     if sbp < 90: score += 1
     if bun >= 20: score += 1
     if age >= 65: score += 1
-    return score
+    return score, "Low" if score == 0 else "Intermediate" if score <= 2 else "High"
 
 def calculate_pni():
     albumin = albumin_raw * conv_factor
-    return albumin + 5 * (lymphocytes_109 * 1000 / 1000)
+    value = albumin + 5 * (lymphocytes_109 * 1000 / 1000)
+    return round(value, 2), "Normal" if value >= 45 else "Moderate Risk" if value >= 40 else "Severe"
 
 def calculate_siri():
-    return round((neutrophils_109 * monocytes_109) / (lymphocytes_109 + 1e-6), 3)
+    value = (neutrophils_109 * monocytes_109) / (lymphocytes_109 + 1e-6)
+    return round(value, 3), "Normal" if value < 1.0 else "Elevated"
 
 def calculate_sii():
-    return round((neutrophils_109 * platelets_109) / (lymphocytes_109 + 1e-6), 1)
+    value = (neutrophils_109 * platelets_109) / (lymphocytes_109 + 1e-6)
+    return round(value, 1), "Normal" if value < 600 else "High"
 
 def calculate_albi():
     albumin = albumin_raw * conv_factor
-    return round((math.log10(bilirubin + 1e-6) * 0.66) - (0.085 * albumin), 3)
+    value = (math.log10(bilirubin + 1e-6) * 0.66) - (0.085 * albumin)
+    return round(value, 3), "Normal" if value < -2.60 else "Mild" if value < -1.39 else "Severe"
 
 def calculate_alt_plat():
-    return round((alt * 1000) / platelets, 3)
+    value = (alt * 1000) / platelets
+    return round(value, 3), "Normal" if value < 0.3 else "Abnormal"
 
 def calculate_globulin_ratio():
-    return round(globulin_raw / total_protein_raw, 3)
+    value = globulin_raw / total_protein_raw
+    return round(value, 3), "Normal" if 0.3 <= value <= 0.6 else "Abnormal"
 
 def calculate_egfr():
-    return round(186 * (creatinine ** -1.154) * (age ** -0.203), 1)
+    value = 186 * (creatinine ** -1.154) * (age ** -0.203)
+    return round(value, 1), "Normal" if value > 90 else "Mild" if value > 60 else "Moderate" if value > 30 else "Severe"
 
 def calculate_uar():
-    albumin = albumin_raw * conv_factor
-    return round(urea_input / albumin, 3)
+    value = urea_mg_dl / albumin_mg_dl
+    return round(value, 3), "Normal" if value < 0.5 else "High"
 
 def calculate_shr():
     est_glucose = (28.7 * hba1c) - 46.7
-    return round(adm_glucose / est_glucose, 3)
+    value = adm_glucose / est_glucose
+    return round(value, 3), "Normal" if value < 1.14 else "Elevated"
 
 # PDF creation and download
 if st.button("Calculate and Download Report"):
     results = [
-        ("NEWS2", calculate_news2()),
-        ("CURB-65", calculate_curb65()),
-        ("PNI", calculate_pni()),
-        ("SIRI", calculate_siri()),
-        ("SII", calculate_sii()),
-        ("ALBI", calculate_albi()),
-        ("ALT/PLT Ratio", calculate_alt_plat()),
-        ("Globulin/TP Ratio", calculate_globulin_ratio()),
-        ("eGFR", calculate_egfr()),
-        ("UAR", calculate_uar()),
-        ("SHR", calculate_shr())
+        ("NEWS2", *calculate_news2()),
+        ("CURB-65", *calculate_curb65()),
+        ("PNI", *calculate_pni()),
+        ("SIRI", *calculate_siri()),
+        ("SII", *calculate_sii()),
+        ("ALBI", *calculate_albi()),
+        ("ALT/PLT Ratio", *calculate_alt_plat()),
+        ("Globulin/TP Ratio", *calculate_globulin_ratio()),
+        ("eGFR", *calculate_egfr()),
+        ("UAR", *calculate_uar()),
+        ("SHR", *calculate_shr())
     ]
 
     pdf = FPDF()
@@ -153,8 +163,8 @@ if st.button("Calculate and Download Report"):
     if diagnosis:
         pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=3)
 
-    for name, value in results:
-        line = f"{name}: {value}"
+    for name, value, status in results:
+        line = f"{name}: {value} — {status}"
         try:
             pdf.cell(200, 10, txt=line.encode('latin-1', 'replace').decode('latin-1'), ln=1)
         except:
