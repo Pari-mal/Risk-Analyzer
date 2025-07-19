@@ -119,12 +119,13 @@ if st.button("Calculate Scores"):
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt="Clinical Risk Score Report", ln=True, align='C')
     pdf.ln(5)
-    pdf.cell(200, 10, txt=f"Patient Name: {patient_name}", ln=True)
+    pdf.cell(200, 10, txt=f"Patient Name: {patient_name}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
     pdf.cell(200, 10, txt=f"Date: {report_date}", ln=True)
-    pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=True)
+    pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
     pdf.ln(5)
     for name, val, band in results:
-        pdf.cell(200, 10, txt=f"{name}: {val} — {band}", ln=True)
+        line = f"{name}: {val} — {band}"
+        pdf.cell(200, 10, txt=line.encode('latin-1', 'replace').decode('latin-1'), ln=True)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
         pdf.output(tmpfile.name)
