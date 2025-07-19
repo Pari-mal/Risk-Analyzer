@@ -91,7 +91,7 @@ def calculate_news2():
     if confusion == "Yes": score += 3
     return score, "Low" if score < 5 else "Medium" if score < 7 else "High"
 
-def calculate_curb65(urea_mg_dl):
+def calculate_curb65():
     score = 0
     if confusion == "Yes": score += 1
     if resp_rate >= 30: score += 1
@@ -104,10 +104,10 @@ def calculate_pni():
     return albumin_raw * conv_factor + 5 * (lymphocytes / 1000)
 
 def calculate_sii():
-    return (neutrophils * platelets) / lymphocytes
+    return (neutrophils_109 * platelets_109) / lymphocytes_109
 
 def calculate_siri():
-    return (neutrophils * monocytes) / lymphocytes
+    return (neutrophils_109 * monocytes_109) / lymphocytes_109
 
 def calculate_albi():
     return (math.log10(bilirubin) * 0.66) - (albumin_raw * conv_factor * 0.085)
@@ -139,7 +139,7 @@ if st.button("Calculate Scores"):
     news2_score, news2_band = calculate_news2()
     results.append(("NEWS2", news2_score, news2_band))
 
-    curb_score, curb_band = calculate_curb65(urea_mg_dl)
+    curb_score, curb_band = calculate_curb65()
     results.append(("CURB-65", curb_score, curb_band))
 
     pni = round(calculate_pni(), 2)
@@ -169,7 +169,7 @@ if st.button("Calculate Scores"):
     results.append(("eGFR", egfr, egfr_band))
 
     uar = round(calculate_uar(), 3)
-    uar_band = interpret_band(uar, [(0, 0.15, "Normal"), (0.15, 0.25, "Mild"), (0.25, 0.35, "Moderate"), (0.35, 100, "Severe")])
+    uar_band = interpret_band(uar, [(0, 0.3, "Normal"), (0.3, 0.5, "Mild"), (0.5, 1.0, "Moderate"), (1.0, 100, "Severe")])
     results.append(("UAR", uar, uar_band))
 
     shr = round(calculate_shr(), 3)
