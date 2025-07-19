@@ -216,7 +216,7 @@ if st.button("Calculate Scores"):
     results.append(("eGFR", egfr, egfr_band))
 
     uar = round(calculate_uar(), 3)
-    uar_band = interpret_band(uar, [(0, 5, "Normal"), (5, 10, "Mild"), (10, 15, "Moderate"), (15, 100, "Severe")])
+    uar_band = interpret_band(uar, [(0, 1.2, "Normal"), (1.2, 1.6, "Mild"), (1.6, 2, "Moderate"), (2, 50, "Severe")])
     results.append(("UAR", uar, uar_band))
 
     shr = round(calculate_shr(), 3)
