@@ -100,15 +100,81 @@ def calculate_curb65(urea_mg_dl):
     if age >= 65: score += 1
     return score, "Low" if score == 0 else "Intermediate" if score <= 2 else "High"
 
+def calculate_pni():
+    return albumin_raw * conv_factor + 5 * (lymphocytes / 1000)
+
+def calculate_sii():
+    return (neutrophils * platelets) / lymphocytes
+
+def calculate_siri():
+    return (neutrophils * monocytes) / lymphocytes
+
+def calculate_albi():
+    return (math.log10(bilirubin) * 0.66) - (albumin_raw * conv_factor * 0.085)
+
+def calculate_alt_platelet():
+    return alt / platelets_109
+
+def calculate_globulin_tp():
+    return globulin_raw / total_protein_raw
+
+def calculate_egfr():
+    return 186 * (creatinine ** -1.154) * (age ** -0.203)
+
+def calculate_uar():
+    return urea_mg_dl / albumin_mg_dl
+
+def calculate_shr():
+    return adm_glucose / (28.7 * hba1c - 46.7)
+
+def interpret_band(val, bands):
+    for (low, high, band) in bands:
+        if low <= val < high:
+            return band
+    return bands[-1][2]
+
 # Display results
 if st.button("Calculate Scores"):
+    results = []
     news2_score, news2_band = calculate_news2()
-    curb_score, curb_band = calculate_curb65(urea_mg_dl)
+    results.append(("NEWS2", news2_score, news2_band))
 
-    results = [
-        ("NEWS2", news2_score, news2_band),
-        ("CURB-65", curb_score, curb_band)
-    ]
+    curb_score, curb_band = calculate_curb65(urea_mg_dl)
+    results.append(("CURB-65", curb_score, curb_band))
+
+    pni = round(calculate_pni(), 2)
+    pni_band = interpret_band(pni, [(0, 40, "Severe"), (40, 45, "Moderate"), (45, 50, "Mild"), (50, 1000, "Normal")])
+    results.append(("PNI", pni, pni_band))
+
+    sii = round(calculate_sii(), 2)
+    sii_band = interpret_band(sii, [(0, 500, "Normal"), (500, 1000, "Mild"), (1000, 1500, "Moderate"), (1500, 1e6, "Severe")])
+    results.append(("SII", sii, sii_band))
+
+    siri = round(calculate_siri(), 2)
+    siri_band = interpret_band(siri, [(0, 0.5, "Normal"), (0.5, 1.0, "Mild"), (1.0, 1.5, "Moderate"), (1.5, 100, "Severe")])
+    results.append(("SIRI", siri, siri_band))
+
+    albi = round(calculate_albi(), 3)
+    albi_band = interpret_band(albi, [(-10, -2.6, "Grade 1"), (-2.6, -1.39, "Grade 2"), (-1.39, 10, "Grade 3")])
+    results.append(("ALBI", albi, albi_band))
+
+    altplt = round(calculate_alt_platelet(), 3)
+    results.append(("ALT/PLT Ratio", altplt, "—"))
+
+    globtp = round(calculate_globulin_tp(), 3)
+    results.append(("Globulin/TP Ratio", globtp, "—"))
+
+    egfr = round(calculate_egfr(), 1)
+    egfr_band = interpret_band(egfr, [(0, 30, "Severe"), (30, 60, "Moderate"), (60, 90, "Mild"), (90, 200, "Normal")])
+    results.append(("eGFR", egfr, egfr_band))
+
+    uar = round(calculate_uar(), 3)
+    uar_band = interpret_band(uar, [(0, 0.15, "Normal"), (0.15, 0.25, "Mild"), (0.25, 0.35, "Moderate"), (0.35, 100, "Severe")])
+    results.append(("UAR", uar, uar_band))
+
+    shr = round(calculate_shr(), 3)
+    shr_band = interpret_band(shr, [(0, 0.8, "Low"), (0.8, 1.0, "Normal"), (1.0, 1.4, "Mild"), (1.4, 2.0, "Moderate"), (2.0, 100, "Severe")])
+    results.append(("SHR", shr, shr_band))
 
     for name, val, band in results:
         st.write(f"**{name}**: {val} — {band}")
