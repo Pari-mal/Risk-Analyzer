@@ -1,4 +1,4 @@
-# Streamlit app: Clinical Indices Calculator with Full Indices
+# Streamlit app: Clinical Indices Calculator with Full Indices (Updated)
 import streamlit as st
 from fpdf import FPDF
 import tempfile
@@ -15,7 +15,7 @@ st.write(f"Date: {report_date}")
 # --- Unit Toggles ---
 protein_unit = st.radio("Select protein units", ["g/dL", "g/L"])
 bilirubin_unit = st.radio("Select bilirubin units", ["mg/dL", "µmol/L"])
-urea_unit = st.radio("Select Urea input", ["mmol/L", "mg/dL"])
+urea_unit = st.radio("Select Urea input", ["mg/dL", "mmol/L"])
 conv_factor = 10 if protein_unit == "g/dL" else 1
 
 # --- Demographics ---
@@ -33,10 +33,16 @@ spo2 = st.number_input("SpO₂ (%)", min_value=70, max_value=100, value=98)
 o2_required = st.selectbox("Oxygen Required?", ["No", "Yes"])
 
 # --- CBC ---
-neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000", help="Enter absolute count (e.g., 5000, not %)")).replace(',', '.'))
-lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500", help="Enter absolute count (e.g., 1500, not % or decimal)")).replace(',', '.'))
-monocytes = float(str(st.text_input("Monocytes (/mm³)", "500", help="Enter absolute count (e.g., 500, not %)")).replace(',', '.'))
-platelets = float(str(st.text_input("Platelets (/mm³)", "250000", help="Enter full count (e.g., 250000, not in lakhs or thousands)")).replace(',', '.'))
+neutrophils = float(str(st.text_input("Neutrophils (/mm³)", "5000")).replace(',', '.'))
+lymphocytes = float(str(st.text_input("Lymphocytes (/mm³)", "1500")).replace(',', '.'))
+monocytes = float(str(st.text_input("Monocytes (/mm³)", "500")).replace(',', '.'))
+platelets = float(str(st.text_input("Platelets (/mm³)", "250000")).replace(',', '.'))
+
+# Convert to x10^9/L
+neutrophils_109 = neutrophils / 1000
+lymphocytes_109 = lymphocytes / 1000
+monocytes_109 = monocytes / 1000
+platelets_109 = platelets / 1000
 
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
@@ -94,49 +100,49 @@ def calculate_curb65():
 
 def calculate_pni():
     albumin = albumin_raw * conv_factor
-    return albumin + 5 * (lymphocytes / 1000)
+    return albumin + 5 * (lymphocytes_109 * 1000 / 1000)
 
 def calculate_siri():
-    return (float(neutrophils) * float(monocytes)) / (float(lymphocytes) + 1)
+    return round((neutrophils_109 * monocytes_109) / (lymphocytes_109 + 1e-6), 3)
 
 def calculate_sii():
-    return (float(neutrophils) * float(platelets)) / (float(lymphocytes) + 1)
+    return round((neutrophils_109 * platelets_109) / (lymphocytes_109 + 1e-6), 1)
 
 def calculate_albi():
     albumin = albumin_raw * conv_factor
-    return (math.log10(bilirubin) * 0.66) - (0.085 * albumin)
+    return round((math.log10(bilirubin + 1e-6) * 0.66) - (0.085 * albumin), 3)
 
 def calculate_alt_plat():
-    return (alt * 1000) / platelets
+    return round((alt * 1000) / platelets, 3)
 
 def calculate_globulin_ratio():
-    return globulin_raw / total_protein_raw
+    return round(globulin_raw / total_protein_raw, 3)
 
 def calculate_egfr():
-    return 186 * (creatinine ** -1.154) * (age ** -0.203)
+    return round(186 * (creatinine ** -1.154) * (age ** -0.203), 1)
 
 def calculate_uar():
     albumin = albumin_raw * conv_factor
-    return urea_input / albumin
+    return round(urea_input / albumin, 3)
 
 def calculate_shr():
     est_glucose = (28.7 * hba1c) - 46.7
-    return adm_glucose / est_glucose
+    return round(adm_glucose / est_glucose, 3)
 
 # PDF creation and download
 if st.button("Calculate and Download Report"):
     results = [
-        ("NEWS2", calculate_news2(), [(0, "Normal"), (4, "Low"), (6, "Moderate"), (20, "High")], "Acute Deterioration Risk"),
-        ("CURB-65", calculate_curb65(), [(0, "Low"), (1, "Mild"), (2, "Moderate"), (3, "High")], "Pneumonia Severity"),
-        ("PNI", round(calculate_pni(), 2), [(0, "Severe"), (35, "Moderate"), (40, "Mild"), (45, "Normal")], "Nutritional Status"),
-        ("SIRI", round(calculate_siri(), 2), [(0.8, "Normal"), (1.5, "Elevated"), (2.5, "High")], "Inflammatory Response"),
-        ("SII", round(calculate_sii(), 2), [(300, "Normal"), (600, "Moderate"), (1000, "High")], "Immune Inflammation"),
-        ("ALBI", round(calculate_albi(), 3), [(-2.6, "Grade 1"), (-1.39, "Grade 2"), (10, "Grade 3")], "Liver Function"),
-        ("ALT/PLT Ratio", round(calculate_alt_plat(), 3), [(0, "Normal"), (0.2, "Mild"), (0.3, "Significant")], "Liver Injury Index"),
-        ("Globulin/TP Ratio", round(calculate_globulin_ratio(), 3), [(0.4, "Low"), (0.5, "Normal"), (0.6, "Elevated")], "Immune Protein Balance"),
-        ("eGFR", round(calculate_egfr(), 1), [(0, "Failure"), (15, "Severe"), (30, "Moderate"), (60, "Mild"), (90, "Normal")], "Kidney Function"),
-        ("UAR", round(calculate_uar(), 3), [(0.2, "Normal"), (0.3, "Elevated"), (0.5, "High")], "Renal-Protein Balance"),
-        ("SHR", round(calculate_shr(), 3), [(0, "Low"), (1.14, "Moderate Risk"), (1.4, "High Risk")], "Stress Hyperglycemia")
+        ("NEWS2", calculate_news2()),
+        ("CURB-65", calculate_curb65()),
+        ("PNI", calculate_pni()),
+        ("SIRI", calculate_siri()),
+        ("SII", calculate_sii()),
+        ("ALBI", calculate_albi()),
+        ("ALT/PLT Ratio", calculate_alt_plat()),
+        ("Globulin/TP Ratio", calculate_globulin_ratio()),
+        ("eGFR", calculate_egfr()),
+        ("UAR", calculate_uar()),
+        ("SHR", calculate_shr())
     ]
 
     pdf = FPDF()
@@ -147,9 +153,8 @@ if st.button("Calculate and Download Report"):
     if diagnosis:
         pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=3)
 
-    for name, value, bands, meaning in results:
-        interpretation = next((label for thresh, label in reversed(bands) if value >= thresh), "")
-        line = f"{name}: {value} - {interpretation} ({meaning})"
+    for name, value in results:
+        line = f"{name}: {value}"
         try:
             pdf.cell(200, 10, txt=line.encode('latin-1', 'replace').decode('latin-1'), ln=1)
         except:
