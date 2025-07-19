@@ -47,7 +47,7 @@ platelets_109 = platelets / 1000
 # --- Renal ---
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
 urea_input = st.number_input("Urea", value=10.0)
-urea_mg_dl = urea_input if urea_unit == "mg/dL" else urea_input / 0.357
+urea_mg_dl = urea_input if urea_unit == "mg/dL" else urea_input * 6.0
 bun = urea_mg_dl / 2.14
 
 # --- Liver ---
@@ -122,7 +122,8 @@ def calculate_egfr():
     return 186 * (creatinine ** -1.154) * (age ** -0.203)
 
 def calculate_uar():
-    return urea_mg_dl / albumin_mg_dl
+    urea_mmol_l = urea_mg_dl / 6.0
+    return urea_mmol_l / albumin_mg_dl
 
 def calculate_shr():
     return adm_glucose / (28.7 * hba1c - 46.7)
@@ -136,6 +137,20 @@ def interpret_band(val, bands):
 # Display results
 if st.button("Calculate Scores"):
     results = []
+    comments = {
+        "NEWS2": "Acute Deterioration Risk",
+        "CURB-65": "Pneumonia Severity",
+        "PNI": "Nutritional Status",
+        "SIRI": "Inflammatory Response",
+        "SII": "Immune Inflammation",
+        "ALBI": "Liver Function",
+        "ALT/PLT Ratio": "Liver Injury Index",
+        "Globulin/TP Ratio": "Immune Protein Balance",
+        "eGFR": "Kidney Function",
+        "UAR": "Renal-Protein Balance",
+        "SHR": "Stress Hyperglycemia"
+    }
+
     news2_score, news2_band = calculate_news2()
     results.append(("NEWS2", news2_score, news2_band))
 
@@ -159,17 +174,19 @@ if st.button("Calculate Scores"):
     results.append(("ALBI", albi, albi_band))
 
     altplt = round(calculate_alt_platelet(), 3)
-    results.append(("ALT/PLT Ratio", altplt, "—"))
+    altplt_band = interpret_band(altplt, [(0, 0.2, "Normal"), (0.2, 0.5, "Mild"), (0.5, 1.0, "Moderate"), (1.0, 10, "Severe")])
+    results.append(("ALT/PLT Ratio", altplt, altplt_band))
 
     globtp = round(calculate_globulin_tp(), 3)
-    results.append(("Globulin/TP Ratio", globtp, "—"))
+    globtp_band = interpret_band(globtp, [(0.0, 0.4, "Low"), (0.4, 0.6, "Normal"), (0.6, 1.0, "High")])
+    results.append(("Globulin/TP Ratio", globtp, globtp_band))
 
     egfr = round(calculate_egfr(), 1)
     egfr_band = interpret_band(egfr, [(0, 30, "Severe"), (30, 60, "Moderate"), (60, 90, "Mild"), (90, 200, "Normal")])
     results.append(("eGFR", egfr, egfr_band))
 
     uar = round(calculate_uar(), 3)
-    uar_band = interpret_band(uar, [(0, 0.3, "Normal"), (0.3, 0.5, "Mild"), (0.5, 1.0, "Moderate"), (1.0, 100, "Severe")])
+    uar_band = interpret_band(uar, [(0, 5, "Normal"), (5, 10, "Mild"), (10, 15, "Moderate"), (15, 100, "Severe")])
     results.append(("UAR", uar, uar_band))
 
     shr = round(calculate_shr(), 3)
@@ -177,7 +194,7 @@ if st.button("Calculate Scores"):
     results.append(("SHR", shr, shr_band))
 
     for name, val, band in results:
-        st.write(f"**{name}**: {val} — {band}")
+        st.write(f"**{name}**: {val} — {band} ({comments.get(name, '')})")
 
     # Generate PDF
     pdf = FPDF()
@@ -190,7 +207,8 @@ if st.button("Calculate Scores"):
     pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
     pdf.ln(5)
     for name, val, band in results:
-        line = f"{name}: {val} — {band}"
+        comment = comments.get(name, '')
+        line = f"{name}: {val} — {band} ({comment})"
         pdf.cell(200, 10, txt=line.encode('latin-1', 'replace').decode('latin-1'), ln=True)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
