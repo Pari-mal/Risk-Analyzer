@@ -1,4 +1,4 @@
-# Streamlit app: Clinical Indices Calculator with Full Indices (Updated)
+# Streamlit app: Clinical Indices Calculator with Full Indices (Final)
 import streamlit as st
 from fpdf import FPDF
 import tempfile
@@ -48,13 +48,13 @@ platelets_109 = platelets / 1000
 creatinine = st.number_input("Creatinine (mg/dL)", value=1.0)
 urea_input = st.number_input("Urea", value=10.0)
 urea_mg_dl = urea_input if urea_unit == "mg/dL" else urea_input / 0.357
-bun = urea_mg_dl  # CURB-65 requires mg/dL
+bun = urea_mg_dl / 2.14
 
 # --- Liver ---
 albumin_raw = st.number_input("Albumin", value=3.5 if protein_unit == "g/dL" else 35.0)
 total_protein_raw = st.number_input("Total Protein", value=7.0 if protein_unit == "g/dL" else 70.0)
 globulin_raw = total_protein_raw - albumin_raw
-albumin_mg_dl = albumin_raw if protein_unit == "g/dL" else albumin_raw / 10  # UAR requires g/dL
+albumin_mg_dl = albumin_raw if protein_unit == "g/dL" else albumin_raw / 10
 
 bilirubin_input = st.number_input("Bilirubin", value=1.0)
 bilirubin = bilirubin_input * 17.1 if bilirubin_unit == "mg/dL" else bilirubin_input
@@ -96,81 +96,37 @@ def calculate_curb65():
     if confusion == "Yes": score += 1
     if resp_rate >= 30: score += 1
     if sbp < 90: score += 1
-    if urea >= 40: score += 1
+    if urea_mg_dl >= 40: score += 1
     if age >= 65: score += 1
     return score, "Low" if score == 0 else "Intermediate" if score <= 2 else "High"
 
-def calculate_pni():
-    albumin = albumin_raw * conv_factor
-    value = albumin + 5 * (lymphocytes_109 * 1000 / 1000)
-    return round(value, 2), "Normal" if value >= 45 else "Moderate Risk" if value >= 40 else "Severe"
+# Display results
+if st.button("Calculate Scores"):
+    news2_score, news2_band = calculate_news2()
+    curb_score, curb_band = calculate_curb65()
 
-def calculate_siri():
-    value = (neutrophils_109 * monocytes_109) / (lymphocytes_109 + 1e-6)
-    return round(value, 3), "Normal" if value < 1.0 else "Elevated"
-
-def calculate_sii():
-    value = (neutrophils_109 * platelets_109) / (lymphocytes_109 + 1e-6)
-    return round(value, 1), "Normal" if value < 600 else "High"
-
-def calculate_albi():
-    albumin = albumin_raw * conv_factor
-    value = (math.log10(bilirubin + 1e-6) * 0.66) - (0.085 * albumin)
-    return round(value, 3), "Normal" if value < -2.60 else "Mild" if value < -1.39 else "Severe"
-
-def calculate_alt_plat():
-    value = (alt * 1000) / platelets
-    return round(value, 3), "Normal" if value < 0.3 else "Abnormal"
-
-def calculate_globulin_ratio():
-    value = globulin_raw / total_protein_raw
-    return round(value, 3), "Normal" if 0.3 <= value <= 0.6 else "Abnormal"
-
-def calculate_egfr():
-    value = 186 * (creatinine ** -1.154) * (age ** -0.203)
-    return round(value, 1), "Normal" if value > 90 else "Mild" if value > 60 else "Moderate" if value > 30 else "Severe"
-
-def calculate_uar():
-    value = urea_mg_dl / albumin_mg_dl
-    return round(value, 3), "Normal" if value < 0.5 else "High"
-
-def calculate_shr():
-    est_glucose = (28.7 * hba1c) - 46.7
-    value = adm_glucose / est_glucose
-    return round(value, 3), "Normal" if value < 1.14 else "Elevated"
-
-# PDF creation and download
-if st.button("Calculate and Download Report"):
     results = [
-        ("NEWS2", *calculate_news2()),
-        ("CURB-65", *calculate_curb65()),
-        ("PNI", *calculate_pni()),
-        ("SIRI", *calculate_siri()),
-        ("SII", *calculate_sii()),
-        ("ALBI", *calculate_albi()),
-        ("ALT/PLT Ratio", *calculate_alt_plat()),
-        ("Globulin/TP Ratio", *calculate_globulin_ratio()),
-        ("eGFR", *calculate_egfr()),
-        ("UAR", *calculate_uar()),
-        ("SHR", *calculate_shr())
+        ("NEWS2", news2_score, news2_band),
+        ("CURB-65", curb_score, curb_band)
     ]
 
+    for name, val, band in results:
+        st.write(f"**{name}**: {val} — {band}")
+
+    # Generate PDF
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Clinical Score Report", ln=1, align="C")
-    pdf.cell(200, 10, txt=f"Patient: {patient_name}    Date: {report_date}", ln=2)
-    if diagnosis:
-        pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=3)
-
-    for name, value, status in results:
-        line = f"{name}: {value} — {status}"
-        try:
-            pdf.cell(200, 10, txt=line.encode('latin-1', 'replace').decode('latin-1'), ln=1)
-        except:
-            pdf.cell(200, 10, txt="Encoding Error", ln=1)
+    pdf.cell(200, 10, txt="Clinical Risk Score Report", ln=True, align='C')
+    pdf.ln(5)
+    pdf.cell(200, 10, txt=f"Patient Name: {patient_name}", ln=True)
+    pdf.cell(200, 10, txt=f"Date: {report_date}", ln=True)
+    pdf.cell(200, 10, txt=f"Diagnosis: {diagnosis}", ln=True)
+    pdf.ln(5)
+    for name, val, band in results:
+        pdf.cell(200, 10, txt=f"{name}: {val} — {band}", ln=True)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
         pdf.output(tmpfile.name)
         with open(tmpfile.name, "rb") as f:
-            st.download_button("Download PDF Report", f, file_name="clinical_scores.pdf")
+            st.download_button("Download PDF Report", f, file_name="Clinical_Risk_Report.pdf")
